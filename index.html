@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚀 Ultimate To-Do List</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Roboto',sans-serif;height:100vh;display:flex;justify-content:center;align-items:center;
+background:linear-gradient(-45deg,#6a11cb,#2575fc,#ff6a00,#ee0979);
+background-size:400% 400%;animation:gradientBG 15s ease infinite;transition:0.3s;}
+@keyframes gradientBG{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
+body.dark{background:linear-gradient(-45deg,#1f1c2c,#928dab,#3a1c71,#1c3a5f);}
+.todo-container{background:#fff;padding:30px;border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,0.3);
+width:90%;max-width:450px;max-height:95vh;overflow-y:auto;display:flex;flex-direction:column;align-items:center;transition:0.3s;}
+body.dark .todo-container{background:#2c2c2c;color:#fff;}
+h2{text-align:center;margin-bottom:20px;color:inherit;font-weight:500;font-size:1.8rem;}
+.top-bar{width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;}
+.dark-toggle{cursor:pointer;font-size:22px;transition:0.3s;}
+.dark-toggle:hover{transform:scale(1.2);}
+.input-section{display:flex;flex-direction:column;gap:10px;width:100%;margin-bottom:15px;}
+.input-section input,input[type="date"],input[type="time"],select{width:100%;padding:12px;border:2px solid #2575fc;border-radius:12px;outline:none;transition:0.3s;font-size:1rem;}
+.input-section input:focus,.input-section select:focus{border-color:#ff6a00;box-shadow:0 0 10px rgba(255,106,0,0.5);}
+body.dark .input-section input,body.dark .input-section select{border:2px solid #928dab;background:#444;color:#fff;}
+button{padding:12px;width:100%;border:none;border-radius:12px;background:linear-gradient(45deg,#ff6a00,#ee0979);color:#fff;font-weight:500;cursor:pointer;transition:0.3s;margin-top:5px;font-size:1rem;}
+button:hover{transform:scale(1.05);box-shadow:0 6px 20px rgba(0,0,0,0.3);}
+.search-section{margin-bottom:15px;width:100%;}
+.search-section input{width:100%;padding:12px;border:2px solid #aaa;border-radius:12px;font-size:1rem;}
+body.dark .search-section input{border:2px solid #666;background:#333;color:#fff;}
+ul{list-style:none;padding:0;width:100%;}
+li{padding:12px;margin-bottom:10px;border-radius:12px;transition:0.3s;cursor:pointer;background:#f8f8f8;position:relative;overflow:hidden;display:flex;flex-direction:column;opacity:0;transform:translateY(20px);}
+li.show{opacity:1;transform:translateY(0);}
+body.dark li{background:#3a3a3a;}
+.task-header{display:flex;justify-content:space-between;align-items:center;width:100%;flex-wrap:wrap;}
+.task-meta{font-size:12px;color:#666;margin-top:6px;word-wrap:break-word;}
+body.dark .task-meta{color:#bbb;}
+.actions span{margin-left:10px;cursor:pointer;font-size:18px;transition:0.2s;}
+.actions span:hover{transform:scale(1.2);}
+.edit{color:#28a745;} .delete{color:#ff3b3b;}
+li[data-category="Work"]{border-left:6px solid #ff6a00;}
+li[data-category="Study"]{border-left:6px solid #2575fc;}
+li[data-category="Personal"]{border-left:6px solid #ee0979;}
+li[data-category="General"]{border-left:6px solid #6a11cb;}
+li[data-priority="High"]{border-right:6px solid #ff3b3b;}
+li[data-priority="Medium"]{border-right:6px solid #ffbf00;}
+li[data-priority="Low"]{border-right:6px solid #28a745;}
+li.dragging{opacity:0.5;transform:scale(1.05);}
+.task-tick{font-size:18px;margin-right:8px;display:none;}
+li.completed .task-tick{display:inline;}
+li.completed span.text{opacity:0.7;}
+
+@media (max-width:480px){
+  .todo-container{padding:20px;}
+  h2{font-size:1.5rem;}
+  .input-section input,.input-section select,input[type="date"],input[type="time"],.search-section input,button{padding:10px;font-size:0.95rem;}
+  .actions span{font-size:16px;}
+  li{padding:10px;}
+}
+</style>
+</head>
+<body>
+<div class="todo-container">
+  <div class="top-bar">
+    <h2>🚀 My To-Do List</h2>
+    <span class="dark-toggle" onclick="toggleDarkMode()">🌙</span>
+  </div>
+
+  <div class="input-section">
+    <input type="text" id="taskInput" placeholder="Enter a task">
+    <select id="categoryInput">
+      <option value="General">📌 General</option>
+      <option value="Work">💼 Work</option>
+      <option value="Study">📚 Study</option>
+      <option value="Personal">🏠 Personal</option>
+    </select>
+    <select id="priorityInput">
+      <option value="High">🔴 High</option>
+      <option value="Medium">🟡 Medium</option>
+      <option value="Low">🟢 Low</option>
+    </select>
+    <input type="date" id="dateInput">
+    <input type="time" id="timeInput">
+    <button onclick="addTask()">Add Task</button>
+  </div>
+
+  <div class="search-section">
+    <input type="text" id="searchInput" placeholder="🔍 Search tasks..." onkeyup="searchTasks()">
+  </div>
+
+  <ul id="taskList"></ul>
+</div>
+
+<script>
+let taskList=document.getElementById("taskList");
+let darkToggle=document.querySelector(".dark-toggle");
+let draggedItem=null;
+
+window.onload=()=>{
+  let savedTasks=JSON.parse(localStorage.getItem("tasks"))||[];
+  savedTasks.forEach(task=>createTaskElement(task.text,task.category,task.priority,task.date,task.time,task.completed));
+  let darkMode=localStorage.getItem("darkMode");
+  if(darkMode==="enabled"){document.body.classList.add("dark");darkToggle.textContent="☀️";}
+  sortTasks();
+  checkReminders();
+};
+
+function addTask(){
+  let text=document.getElementById("taskInput").value.trim();
+  let category=document.getElementById("categoryInput").value;
+  let priority=document.getElementById("priorityInput").value;
+  let date=document.getElementById("dateInput").value;
+  let time=document.getElementById("timeInput").value;
+  if(text==="") return;
+  createTaskElement(text,category,priority,date,time,false);
+  sortTasks();
+  saveTasks();
+  document.getElementById("taskInput").value="";
+  document.getElementById("dateInput").value="";
+  document.getElementById("timeInput").value="";
+}
+
+function createTaskElement(text,category,priority,date,time,completed){
+  let li=document.createElement("li"); li.dataset.category=category; li.dataset.priority=priority; li.draggable=true;
+
+  li.addEventListener("dragstart",()=>{draggedItem=li;li.classList.add("dragging");});
+  li.addEventListener("dragend",()=>{draggedItem=null;li.classList.remove("dragging");saveTasks();});
+  li.addEventListener("dragover",e=>{e.preventDefault();});
+  li.addEventListener("drop",e=>{
+    e.preventDefault();
+    if(draggedItem && draggedItem!==li){
+      let all=Array.from(taskList.children);
+      let draggedIndex=all.indexOf(draggedItem);
+      let targetIndex=all.indexOf(li);
+      if(draggedIndex<targetIndex) li.after(draggedItem);
+      else li.before(draggedItem);
+      saveTasks();
+    }
+  });
+
+  let header=document.createElement("div"); header.className="task-header";
+  let tick=document.createElement("span"); tick.className="task-tick"; tick.textContent="✅";
+  let taskText=document.createElement("span"); taskText.className="text"; taskText.textContent=`${text} (${category}) [${priority}]`;
+  header.appendChild(tick); header.appendChild(taskText);
+
+  let actions=document.createElement("div"); actions.className="actions";
+  let editBtn=document.createElement("span"); editBtn.innerHTML="✏"; editBtn.className="edit";
+  editBtn.onclick=(e)=>{e.stopPropagation(); 
+    let newText=prompt("Edit task:",text); 
+    if(newText){taskText.textContent=`${newText} (${category}) [${priority}]`; saveTasks(); sortTasks();}};
+  let delBtn=document.createElement("span"); delBtn.innerHTML="❌"; delBtn.className="delete";
+  delBtn.onclick=(e)=>{e.stopPropagation(); li.remove(); saveTasks();};
+  actions.appendChild(editBtn); actions.appendChild(delBtn); header.appendChild(actions);
+  li.appendChild(header);
+
+  if(date||time){let meta=document.createElement("div");meta.className="task-meta";meta.textContent=`📅 ${date||"No Date"} ⏰ ${time||"No Time"}`;li.appendChild(meta);}
+  if(completed) li.classList.add("completed");
+  li.addEventListener("click",()=>{
+    li.classList.toggle("completed");
+    saveTasks();
+  });
+
+  taskList.appendChild(li);
+  setTimeout(()=>{li.classList.add("show");},50); // animation
+}
+
+function saveTasks(){
+  let tasks=[];
+  document.querySelectorAll("#taskList li").forEach(li=>{
+    let text=li.querySelector(".task-header span.text").textContent;
+    let [taskText,rest]=text.split(" ("); let catPriority=rest.split(") ["); 
+    let category=catPriority[0]; let priority=catPriority[1].replace("]","");
+    let meta=li.querySelector(".task-meta");
+    let date=meta?meta.textContent.split("📅 ")[1].split(" ⏰")[0].trim():"";
+    let time=meta?meta.textContent.split("⏰ ")[1].trim():"";
+    tasks.push({text:taskText,category:category,priority:priority,date:date==="No Date"?"":date,time:time==="No Time"?"":time,completed:li.classList.contains("completed")});
+  });
+  localStorage.setItem("tasks",JSON.stringify(tasks));
+}
+
+function toggleDarkMode(){
+  document.body.classList.toggle("dark");
+  localStorage.setItem("darkMode",document.body.classList.contains("dark")?"enabled":"disabled");
+  darkToggle.textContent=document.body.classList.contains("dark")?"☀️":"🌙";
+}
+
+function searchTasks(){
+  let filter=document.getElementById("searchInput").value.toLowerCase();
+  document.querySelectorAll("#taskList li").forEach(task=>{
+    let text=task.querySelector(".task-header span.text").textContent.toLowerCase();
+    task.style.display=text.includes(filter)?"block":"none";
+  });
+}
+
+function sortTasks(){
+  let tasks=Array.from(taskList.children);
+  tasks.sort((a,b)=>{
+    const priorityMap={"High":3,"Medium":2,"Low":1};
+    let aPriority=priorityMap[a.dataset.priority];
+    let bPriority=priorityMap[b.dataset.priority];
+    if(bPriority!==aPriority) return bPriority-aPriority;
+    let aDate=a.querySelector(".task-meta")?.textContent.split("📅 ")[1].split(" ⏰")[0] || "";
+    let aTime=a.querySelector(".task-meta")?.textContent.split("⏰ ")[1] || "";
+    let bDate=b.querySelector(".task-meta")?.textContent.split("📅 ")[1].split(" ⏰")[0] || "";
+    let bTime=b.querySelector(".task-meta")?.textContent.split("⏰ ")[1] || "";
+    let aDT=new Date(`${aDate}T${aTime}`);
+    let bDT=new Date(`${bDate}T${bTime}`);
+    return aDT-bDT;
+  });
+  tasks.forEach(task=>taskList.appendChild(task));
+}
+
+function checkReminders(){
+  setInterval(()=>{
+    let now=new Date();
+    document.querySelectorAll("#taskList li").forEach(li=>{
+      let meta=li.querySelector(".task-meta");
+      if(!meta) return;
+      let dateText=meta.textContent.split("📅 ")[1].split(" ⏰")[0].trim();
+      let timeText=meta.textContent.split("⏰ ")[1].trim();
+      if(dateText==="No Date"||timeText==="No Time") return;
+      let taskDateTime=new Date(`${dateText}T${timeText}`);
+      let diff=taskDateTime-now;
+      if(diff>0 && diff<1000){ alert(`⏰ Reminder: ${li.querySelector(".task-header span.text").textContent}`); }
+    });
+  },1000);
+}
+</script>
+</body>
+</html>
